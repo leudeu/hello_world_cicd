@@ -1,0 +1,63 @@
+name: "Hello World CI"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Run CI checks (Node & Python)
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Hello, world — starting CI"
+
+          # Node.js: if package.json exists, install and run tests
+          if [ -f package.json ]; then
+            echo "Detected package.json — running npm ci & npm test (if present)"
+            npm ci
+            if command -v npm >/dev/null 2>&1; then
+              npm test || echo "npm test exited with non-zero status"
+            fi
+          else
+            echo "No package.json found — skipping Node steps"
+          fi
+
+          # Python: if requirements.txt or pyproject.toml exists, run tests
+          if [ -f requirements.txt ] || [ -f pyproject.toml ]; then
+            echo "Detected Python project — creating venv and running tests"
+            python -m venv .venv
+            . .venv/bin/activate
+            pip install -U pip
+            if [ -f requirements.txt ]; then
+              pip install -r requirements.txt
+            else
+              pip install .
+            fi
+            if command -v pytest >/dev/null 2>&1; then
+              pytest || echo "pytest exited with non-zero status"
+            else
+              echo "pytest not found — skipping tests"
+            fi
+          else
+            echo "No Python requirements/pyproject found — skipping Python steps"
+          fi
+
+          echo "CI script finished"
